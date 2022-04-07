@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: 'Park Ticketing Service'
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+  datasource:
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    url: 'jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}${DB_PARAM}'
+server:
+  servlet:
+    context-path: ${SERVER_CONTEXT_PATH}
+  port: ${SERVER_PORT}
+
+application:
+  default-time-zone: 'Asia/Singapore'
