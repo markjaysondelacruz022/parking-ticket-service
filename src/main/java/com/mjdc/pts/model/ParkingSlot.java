@@ -7,13 +7,13 @@ import com.mjdc.pts.enumeration.Availability;
 import com.mjdc.pts.enumeration.Size;
 import com.mjdc.pts.util.DateUtil;
 import lombok.Data;
+import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import javax.persistence.*;
-import java.util.Date;
+import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -21,7 +21,7 @@ import java.util.List;
 @Table(uniqueConstraints = {
     @UniqueConstraint(columnNames = {"PARKING_LOT_ID", "NAME"})
 })
-public class ParkingSlot {
+public class ParkingSlot implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "ID")
@@ -40,21 +40,15 @@ public class ParkingSlot {
     @Column(name = "UPDATED_BY")
     private String updatedBy;
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = DateUtil.DATE_TIME_FORMAT)
     @CreationTimestamp
-    @JsonFormat(pattern = DateUtil.DATE_TIME_FORMAT)
     @Column(name = "DATE_CREATED")
-    private Date dateCreated;
+    private LocalDateTime dateCreated;
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = DateUtil.DATE_TIME_FORMAT)
     @UpdateTimestamp
-    @JsonFormat(pattern = DateUtil.DATE_TIME_FORMAT)
     @Column(name = "DATE_UPDATED")
-    private Date dateUpdated;
-
-    @OneToMany(cascade = CascadeType.ALL)
-    @JoinColumn(name = "PARKING_SLOT_ID",  referencedColumnName = "ID",
-        foreignKey = @ForeignKey(name = "PSP_PARKING_SLOT_ID_FK"), nullable = false)
-    @OnDelete(action = OnDeleteAction.NO_ACTION)
-    private List<ParkingSlotPrice> parkingSlotPrices;
+    private LocalDateTime dateUpdated;
 
     @Column(name = "IS_ACTIVE", columnDefinition = "BIT(1) DEFAULT 1")
     private Boolean isActive;
@@ -63,10 +57,10 @@ public class ParkingSlot {
     @Column(name = "AVAILABILITY", columnDefinition = "BIT(1) DEFAULT 1")
     private Availability availability = Availability.OK;
 
-    @JsonIgnore
     @OneToMany(mappedBy = "parkingSlot", cascade = CascadeType.ALL)
     private List<ParkingEntranceSlot> parkingEntranceSlots;
 
+    @ToString.Exclude
     @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "PARKING_LOT_ID", referencedColumnName = "ID",

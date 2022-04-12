@@ -14,10 +14,11 @@ import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import javax.persistence.*;
-import java.util.Date;
+import java.time.LocalDateTime;
 
 @Data
-@Entity(name = "PARKING_TICKET")
+@Entity
+@Table(name = "PARKING_TICKET")
 public class ParkingTicket implements Comparable<ParkingTicket>{
 
     @Id
@@ -51,21 +52,23 @@ public class ParkingTicket implements Comparable<ParkingTicket>{
     @OnDelete(action = OnDeleteAction.NO_ACTION)
     private ParkingEntranceSlot parkingEntranceSlot;
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = DateUtil.DATE_TIME_FORMAT)
     @Column(name = "DATE_PARKED")
-    @JsonFormat(pattern = DateUtil.DATE_TIME_FORMAT)
-    private Date dateParked;
+    private LocalDateTime dateParked;
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = DateUtil.DATE_TIME_FORMAT)
     @Column(name = "DATE_CHECKOUT")
-    @JsonFormat(pattern = DateUtil.DATE_TIME_FORMAT)
-    private Date dateCheckout;
+    private LocalDateTime dateCheckout;
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = DateUtil.DATE_TIME_FORMAT)
     @CreationTimestamp
     @Column(name = "DATE_CREATED")
-    private Date dateCreated;
+    private LocalDateTime dateCreated;
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = DateUtil.DATE_TIME_FORMAT)
     @UpdateTimestamp
     @Column(name = "DATE_UPDATED")
-    private Date dateUpdated;
+    private LocalDateTime dateUpdated;
 
     @JsonIgnore
     @OneToOne

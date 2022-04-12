@@ -1,11 +1,8 @@
 package com.mjdc.pts.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.mjdc.pts.converter.PriceTypeAttributeConverter;
 import com.mjdc.pts.enumeration.PriceType;
 import lombok.Data;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
 
 import javax.persistence.*;
 import java.math.BigDecimal;

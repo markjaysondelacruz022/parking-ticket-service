@@ -1,5 +1,6 @@
 package com.mjdc.pts.service;
 
+import com.mjdc.pts.dto.ParkingEntranceDto;
 import com.mjdc.pts.dto.ParkingEntranceSlotDto;
 import com.mjdc.pts.dto.ParkingSlotDto;
 import com.mjdc.pts.enumeration.Size;
@@ -14,4 +15,7 @@ public interface ParkingEntranceSlotService {
     boolean isExist(Long id);
 
     void populateParkingEntranceSlot(Long lotId);
+
+    ParkingEntranceDto retrieveEntranceIfEmpty(ParkingEntranceDto parkingEntranceDto, Long entranceId);
+    ParkingSlotDto retrieveSlotIfEmpty(ParkingSlotDto parkingSlotDto, Long slotId);
 }

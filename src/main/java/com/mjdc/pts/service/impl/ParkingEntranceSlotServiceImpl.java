@@ -2,6 +2,7 @@ package com.mjdc.pts.service.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mjdc.pts.dto.ParkingEntranceDto;
 import com.mjdc.pts.dto.ParkingEntranceSlotDto;
 import com.mjdc.pts.dto.ParkingSlotDto;
 import com.mjdc.pts.enumeration.Availability;
@@ -13,6 +14,8 @@ import com.mjdc.pts.repository.ParkingEntranceRepository;
 import com.mjdc.pts.repository.ParkingEntranceSlotRepository;
 import com.mjdc.pts.repository.ParkingSlotRepository;
 import com.mjdc.pts.service.ParkingEntranceSlotService;
+import com.mjdc.pts.service.ParkingSlotService;
+import com.mjdc.pts.service.ParkingTicketService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,6 +33,7 @@ public class ParkingEntranceSlotServiceImpl implements ParkingEntranceSlotServic
     private final ParkingEntranceSlotRepository entranceSlotRepository;
     private final ParkingEntranceRepository entranceRepository;
     private final ParkingSlotRepository parkingSlotRepository;
+    private final ParkingSlotService parkingSlotService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -39,7 +43,7 @@ public class ParkingEntranceSlotServiceImpl implements ParkingEntranceSlotServic
 
         final Optional<ParkingEntrance> parkingEntranceOpt = entranceRepository.findById(entranceId);
 
-        final AtomicReference<Optional<ParkingEntranceSlotDto>> availableParkingSlotDtoOpt = new AtomicReference<>(Optional.empty());
+        final AtomicReference<Optional<ParkingEntranceSlot>> availableParkingSlotOpt = new AtomicReference<>(Optional.empty());
 
         parkingEntranceOpt.ifPresent(parkingEntrance -> {
             log.info("Retrieve entrance {}", parkingEntrance);
@@ -49,10 +53,8 @@ public class ParkingEntranceSlotServiceImpl implements ParkingEntranceSlotServic
                 .findAllByParkingEntranceAndParkingSlot_AvailabilityAndParkingEntrance_IsActive(parkingEntrance,
                     Availability.OK, true);
 
-            final List<ParkingEntranceSlotDto> parkingEntranceSlotDtoList = objectMapper.convertValue(list, new TypeReference<>() {});
-
-            final List<ParkingEntranceSlotDto> availableParkingSLotFromEntDtoList = parkingEntranceSlotDtoList.stream()
-                .sorted(Comparator.comparing(ParkingEntranceSlotDto::getDistance))
+            final List<ParkingEntranceSlot> availableParkingSLotFromEntDtoList = list.stream()
+                .sorted(Comparator.comparing(ParkingEntranceSlot::getDistance))
                 .filter(sortedEntranceSlot -> this.isVehicleFitWithSlot(sortedEntranceSlot
                     .getParkingSlot().getSize(), vehicleSize))
                 .collect(Collectors.toList());
@@ -61,11 +63,40 @@ public class ParkingEntranceSlotServiceImpl implements ParkingEntranceSlotServic
                     .collect(Collectors.toList()));
 
             if (!availableParkingSLotFromEntDtoList.isEmpty()) {
-                availableParkingSlotDtoOpt.set(Optional.of(availableParkingSLotFromEntDtoList.get(0)));
+                availableParkingSlotOpt.set(Optional.of(availableParkingSLotFromEntDtoList.get(0)));
             }
         });
+        availableParkingSlotOpt.get().ifPresent(availableSlot -> {
 
-        return availableParkingSlotDtoOpt.get();
+        });
+
+        return availableParkingSlotOpt.get().map(availableSlot -> {
+            final ParkingEntranceSlotDto parkingEntranceSlotDto = objectMapper.convertValue(availableSlot,
+                ParkingEntranceSlotDto.class);
+
+            parkingEntranceSlotDto.setParkingSlot(this.retrieveSlotIfEmpty(parkingEntranceSlotDto.getParkingSlot(),
+                    parkingEntranceSlotDto.getParkingSlotId()));
+            parkingEntranceSlotDto.setParkingEntrance(this.retrieveEntranceIfEmpty(parkingEntranceSlotDto.getParkingEntrance(),
+                    parkingEntranceSlotDto.getParkingEntranceId()));
+
+            return parkingEntranceSlotDto;
+        });
+    }
+
+    @Override
+    public ParkingEntranceDto retrieveEntranceIfEmpty(final ParkingEntranceDto parkingEntranceDto, final Long entranceId) {
+        return Optional
+            .ofNullable(parkingEntranceDto)
+            .orElse(entranceRepository.findById(entranceId)
+                .map(parkingEntrance -> objectMapper.convertValue(parkingEntrance, ParkingEntranceDto.class))
+                .orElse(null));
+    }
+
+    @Override
+    public ParkingSlotDto retrieveSlotIfEmpty(final ParkingSlotDto parkingSlotDto, final Long slotId) {
+        return Optional
+            .ofNullable(parkingSlotDto)
+            .orElse(parkingSlotService.retrieveById(slotId).orElse(null));
     }
 
     @Override
@@ -78,7 +109,7 @@ public class ParkingEntranceSlotServiceImpl implements ParkingEntranceSlotServic
         log.info("Populating entrance slot for lot id {}", lotId);
         final List<ParkingEntrance> parkingEntranceList = entranceRepository.findByParkingLot_Id(lotId);
         final List<Long> parkingSlotIds = parkingSlotRepository.findByParkingLot_Id(lotId).stream()
-            .map(ParkingSlot::getId).collect(Collectors.toList());;
+            .map(ParkingSlot::getId).collect(Collectors.toList());
         parkingEntranceList.forEach(entrance -> {
             log.info("Populating entrance {}", entrance.getName());
             final List<Long> entranceSlotIds = entranceSlotRepository.findByParkingEntranceId(entrance.getId())

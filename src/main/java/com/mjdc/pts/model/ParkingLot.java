@@ -1,5 +1,7 @@
 package com.mjdc.pts.model;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.mjdc.pts.util.DateUtil;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.OnDelete;
@@ -7,12 +9,12 @@ import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import javax.persistence.*;
-import java.util.Date;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 
 @Data
-@Entity(name = "PARKING_LOT")
+@Entity
+@Table(name = "PARKING_LOT")
 public class ParkingLot {
 
     @Id
@@ -29,13 +31,15 @@ public class ParkingLot {
     @Column(name = "UPDATED_BY")
     private String updatedBy;
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = DateUtil.DATE_TIME_FORMAT)
     @CreationTimestamp
     @Column(name = "DATE_CREATED")
-    private Date dateCreated;
+    private LocalDateTime dateCreated;
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = DateUtil.DATE_TIME_FORMAT)
     @UpdateTimestamp
     @Column(name = "DATE_UPDATED")
-    private Date dateUpdated;
+    private LocalDateTime dateUpdated;
 
     @Column(name = "IS_ACTIVE", columnDefinition = "BIT(1) DEFAULT 1")
     private Boolean isActive = true;

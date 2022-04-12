@@ -15,4 +15,4 @@ server:
   port: ${SERVER_PORT}
 
 application:
-  default-time-zone: 'Asia/Singapore'
+  default-time-zone: 'Asia/Manila'

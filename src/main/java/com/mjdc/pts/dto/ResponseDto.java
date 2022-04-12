@@ -6,7 +6,7 @@ import com.mjdc.pts.util.DateUtil;
 import lombok.Builder;
 import lombok.Data;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Builder
@@ -14,12 +14,12 @@ import java.util.Optional;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ResponseDto {
 
-    private Date timestamp;
+    private LocalDateTime timestamp;
     private String message;
     private Object data;
 
-    @JsonFormat(pattern = DateUtil.DATE_TIME_FORMAT)
-    public Date getTimestamp() {
-        return Optional.ofNullable(timestamp).isEmpty() ? DateUtil.getCurrentDateTime() : this.timestamp;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = DateUtil.DATE_TIME_FORMAT)
+    public LocalDateTime getTimestamp() {
+        return Optional.ofNullable(timestamp).isEmpty() ? DateUtil.getCurrentLocalDateTime() : this.timestamp;
     }
 }

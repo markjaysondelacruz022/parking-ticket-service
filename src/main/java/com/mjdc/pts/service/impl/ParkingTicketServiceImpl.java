@@ -7,20 +7,26 @@ import com.mjdc.pts.enumeration.*;
 import com.mjdc.pts.exception.ParkingException;
 import com.mjdc.pts.model.*;
 import com.mjdc.pts.repository.ParkingEntranceRepository;
+import com.mjdc.pts.repository.ParkingSlotPriceRepository;
 import com.mjdc.pts.repository.ParkingTicketRepository;
 import com.mjdc.pts.repository.ParkingTransactionDetailsRepository;
 import com.mjdc.pts.service.ParkingEntranceSlotService;
+import com.mjdc.pts.service.ParkingLotService;
 import com.mjdc.pts.service.ParkingSlotService;
 import com.mjdc.pts.service.ParkingTicketService;
 import com.mjdc.pts.util.DateUtil;
 import com.mjdc.pts.util.UtilityHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -32,12 +38,20 @@ public class ParkingTicketServiceImpl implements ParkingTicketService {
     private final ParkingSlotService parkingSlotService;
     private final ParkingEntranceSlotService parkingEntranceSlotService;
     private final ParkingEntranceRepository parkingEntranceRepository;
+    private final ParkingLotService parkingLotService;
     private final ParkingTicketRepository parkingTicketRepository;
     private final ParkingTransactionDetailsRepository parkingTransactionDetailsRepository;
+    private final ParkingSlotPriceRepository parkingSlotPriceRepository;
     private final ObjectMapper objectMapper;
 
     @Override
-    public Optional<ParkingTicketDto> park(final Long entranceId, final ParkingTicketDto parkingTicketDto) {
+    public Optional<ParkingTicketDto> park(final Long lotId,
+                                           final Long entranceId,
+                                           final ParkingTicketDto parkingTicketDto) {
+
+        if (!parkingLotService.isEntranceExistInParkingLot(lotId, entranceId)) {
+            throw new ParkingException("Parking lot/entrance is invalid or non existent", HttpStatus.BAD_REQUEST);
+        }
 
         if (parkingTicketRepository.existsByVehiclePlateNumberAndParkingStatus(parkingTicketDto.getVehiclePlateNumber(),
             ParkingStatus.PARKED)) {
@@ -46,8 +60,7 @@ public class ParkingTicketServiceImpl implements ParkingTicketService {
                 HttpStatus.BAD_REQUEST);
         }
 
-        final Date currentDateMinusOneHour = DateUtil.modifiedDate(DateUtil.getCurrentDateTime(),
-            Calendar.HOUR, -1);
+        final LocalDateTime currentDateMinusOneHour = DateUtil.modifiedDateHour(DateUtil.getCurrentLocalDateTime(), -1);
 
         List<ParkingTicket> prevParkingTickets = parkingTicketRepository
             .findByVehiclePlateNumberAndParkingStatusAndDateCheckoutGreaterThanEqual(parkingTicketDto.getVehiclePlateNumber(),
@@ -58,7 +71,7 @@ public class ParkingTicketServiceImpl implements ParkingTicketService {
         Optional<ParkingTransactionDetails> prevTransactionDetailsOpt = Optional.empty();
 
         if (!prevParkingTickets.isEmpty()) {
-            final ParkingTicket prevParkingTicket = prevParkingTickets.get(0);
+            final ParkingTicket prevParkingTicket = prevParkingTickets.get(prevParkingTickets.size() - 1);
             prevTransactionDetailsOpt = parkingTransactionDetailsRepository
                 .findByTicketId(prevParkingTicket.getTicketId());
         }
@@ -79,15 +92,13 @@ public class ParkingTicketServiceImpl implements ParkingTicketService {
         final ParkingEntranceSlotDto parkingEntranceSlotDto = parkingTicketDto.getParkingEntranceSlot();
 
 
-        Optional<ParkingEntranceDto> parkingEntranceDtoOpt = Optional.ofNullable(Optional
-            .ofNullable(parkingEntranceSlotDto.getParkingEntrance())
-            .orElse(parkingEntranceRepository.findById(parkingEntranceSlotDto.getParkingEntranceId())
-                .map(parkingEntrance -> objectMapper.convertValue(parkingEntrance, ParkingEntranceDto.class))
-                .orElse(null)));
+        final Optional<ParkingEntranceDto> parkingEntranceDtoOpt = Optional.ofNullable(parkingEntranceSlotService
+            .retrieveEntranceIfEmpty(parkingEntranceSlotDto
+            .getParkingEntrance(), parkingEntranceSlotDto.getParkingEntranceId()));
 
-        Optional<ParkingSlotDto> parkingSlotDtoOpt = Optional.ofNullable(Optional
-            .ofNullable(parkingEntranceSlotDto.getParkingSlot())
-            .orElse(parkingSlotService.retrieveById(parkingEntranceSlotDto.getParkingSlotId()).orElse(null)));
+        final Optional<ParkingSlotDto> parkingSlotDtoOpt = Optional.ofNullable(parkingEntranceSlotService
+            .retrieveSlotIfEmpty(parkingEntranceSlotDto
+            .getParkingSlot(), parkingEntranceSlotDto.getParkingSlotId()));
 
         if (parkingEntranceDtoOpt.isEmpty() || parkingSlotDtoOpt.isEmpty()) {
             throw new ParkingException("Can't find parking entrance or parking slot", HttpStatus.BAD_REQUEST);
@@ -101,20 +112,25 @@ public class ParkingTicketServiceImpl implements ParkingTicketService {
         log.info("Generated ticket id");
         final String ticketId = this.generateTicketId(parkingTicketRepository.getMaxTicketId());
         parkingTicket.setTicketId(ticketId);
-        parkingTicket.setDateParked(DateUtil.getCurrentDateTime());
+        parkingTicket.setDateParked(DateUtil.getCurrentLocalDateTime());
         prevTransactionDetailsOpt.ifPresent(parkingTransactionDetails -> {
             parkingTicket.setDateParked(parkingTransactionDetails.getDateParked());
             parkingTicket.setPreviousParkingTransactionDetails(parkingTransactionDetails);
         });
 
         final ParkingTicketDto savedParkingTicketDto = objectMapper.convertValue(parkingTicketRepository
-            .save(parkingTicket), ParkingTicketDto.class);
+            .saveAndFlush(parkingTicket), ParkingTicketDto.class);
+
+        Optional.ofNullable(savedParkingTicketDto.getParkingEntranceSlot()).ifPresent(entranceSlotDto -> {
+            entranceSlotDto.setParkingEntrance(parkingEntranceDtoOpt.get());
+            entranceSlotDto.setParkingSlot(parkingSlotDtoOpt.get());
+        });
 
         this.updateParkingSlotAvailability(parkingEntranceSlotDto.getParkingSlot(), Availability.NOT);
 
         log.info("Saved Parking Ticket {}", savedParkingTicketDto);
 
-        return Optional.ofNullable(savedParkingTicketDto);
+        return Optional.of(savedParkingTicketDto);
     }
 
     private void findPreviousPaidTransaction(final ParkingTicket parkingTicket, final List<ParkingTransactionItemDto> paidTransactions) {
@@ -132,7 +148,7 @@ public class ParkingTicketServiceImpl implements ParkingTicketService {
                 }
                 parkingTicketRepository.findByTicketId(transactionDetails.getTicketId())
                     .ifPresent(parkingTicket1 -> findPreviousPaidTransaction(parkingTicket1, paidTransactions));
-            } );
+            });
     }
 
     private void updateParkingSlotAvailability(final ParkingSlotDto parkingSlotDto, final Availability availability) {
@@ -151,9 +167,15 @@ public class ParkingTicketServiceImpl implements ParkingTicketService {
             }
 
             final String parkingTicketId = parkingTicket.getTicketId();
-
+            final AtomicReference<BigDecimal> hoursDurationAr = new AtomicReference<>(new BigDecimal(0));
+            final AtomicInteger hoursBilledOptAi = new AtomicInteger(0);
             final List<ParkingTransactionItem> parkingTransactionItemList = objectMapper
-                .convertValue(calculateCurrentCharges(parkingTicketId), new TypeReference<>() {});
+                .convertValue(transactionTicketDetailsAndCharges(parkingTicketId)
+                    .map(parkingTransactionDetailsDto -> {
+                        hoursDurationAr.set(parkingTransactionDetailsDto.getHoursDuration());
+                        hoursBilledOptAi.set(parkingTransactionDetailsDto.getHoursBilled());
+                        return parkingTransactionDetailsDto.getParkingTransactionItems();
+                    }).orElse(new ArrayList<>()), new TypeReference<>() {});
 
             final ParkingEntranceSlot entranceSlot = parkingTicket.getParkingEntranceSlot();
             final ParkingSlot parkingSlot = entranceSlot.getParkingSlot();
@@ -175,8 +197,8 @@ public class ParkingTicketServiceImpl implements ParkingTicketService {
             final String entranceName = parkingEntrance.getName();
             final Size slotSize = parkingSlot.getSize();
 
-            final Date dateParked = parkingTicket.getDateParked();
-            final Date dateCheckout = DateUtil.getCurrentDateTime();
+            final LocalDateTime dateParked = parkingTicket.getDateParked();
+            final LocalDateTime dateCheckout = DateUtil.getCurrentLocalDateTime();
             final PaymentStatus paymentStatus = PaymentStatus.PAID;
 
             final ParkingTransactionDetails parkingTransactionDetails = new ParkingTransactionDetails();
@@ -196,12 +218,14 @@ public class ParkingTicketServiceImpl implements ParkingTicketService {
             parkingTransactionDetails.setDateParked(dateParked);
             parkingTransactionDetails.setDateCheckout(dateCheckout);
             parkingTransactionDetails.setPaymentStatus(paymentStatus);
+            parkingTransactionDetails.setHoursDuration(hoursDurationAr.get());
+            parkingTransactionDetails.setHoursBilled(hoursBilledOptAi.get());
             parkingTransactionDetails.setAmountTender(unParkingDto.getAmountTender());
             parkingTransactionDetails.setAmountChange(unParkingDto.getAmountTender().subtract(totalAmount));
 
-            final ParkingTransactionDetailsDto parkingTransactionDetailsDto =  objectMapper
+            final ParkingTransactionDetailsDto parkingTransactionDetailsDto = objectMapper
                 .convertValue(parkingTransactionDetailsRepository
-                .save(parkingTransactionDetails), ParkingTransactionDetailsDto.class);
+                    .save(parkingTransactionDetails), ParkingTransactionDetailsDto.class);
             transactionDetailsOptAr.set(Optional.of(parkingTransactionDetailsDto));
 
             this.updateParkingSlotAvailability(objectMapper.convertValue(parkingSlot, ParkingSlotDto.class),
@@ -213,24 +237,48 @@ public class ParkingTicketServiceImpl implements ParkingTicketService {
         });
         return transactionDetailsOptAr.get();
     }
-
     @Override
     public Optional<ParkingTransactionDetailsDto> retrieveCurrentCharges(String ticketId) {
-        final List<ParkingTransactionItemDto> charges = calculateCurrentCharges(ticketId);
-        Optional<ParkingTransactionDetailsDto> parkingTransactionDetailsDtoOpt = Optional.empty();
 
-        if (!charges.isEmpty()) {
-            final ParkingTransactionDetailsDto transactionDetailsDto = new ParkingTransactionDetailsDto();
-            transactionDetailsDto.setTicketId(ticketId);
-            transactionDetailsDto.setTotalAmountDue(calculateTotalAmountDue(objectMapper
-                .convertValue(charges, new TypeReference<>() {})));
-            transactionDetailsDto.setParkingTransactionItems(charges);
-            parkingTransactionDetailsDtoOpt = Optional.of(transactionDetailsDto);
-        }
+        return transactionTicketDetailsAndCharges(ticketId).map(transaction -> {
+            transaction.setTotalAmountDue(calculateTotalAmountDue(objectMapper
+                .convertValue(transaction.getParkingTransactionItems(), new TypeReference<>() {
+                })));
+            return transaction;
+        });
+    }
 
 
+    @Override
+    public Optional<ParkingTicketDto> retrieveTicketByTicketId(String ticketId) {
+        return Optional.ofNullable(objectMapper.convertValue(parkingTicketRepository.findByTicketId(ticketId),
+            ParkingTicketDto.class));
+    }
 
-        return parkingTransactionDetailsDtoOpt;
+    @Override
+    public Page<ParkingTicketDto> retrieveTicketBySearchKeyPageable(String searchKey, Pageable pageable) {
+        return parkingTicketRepository.getParkingTicketBySearchKeyPageable(searchKey, pageable)
+            .map(parkingTicket -> {
+                final ParkingTicketDto parkingTicketDto = objectMapper.convertValue(parkingTicket,
+                    ParkingTicketDto.class);
+
+                Optional.ofNullable(parkingTicket.getParkingEntranceSlot()).ifPresent(entranceSlot -> {
+
+                    final ParkingEntranceDto parkingEntranceDto = objectMapper.convertValue(entranceSlot.getParkingEntrance(), ParkingEntranceDto.class);
+                    final ParkingSlotDto parkingSlotDto = objectMapper.convertValue(entranceSlot.getParkingSlot(), ParkingSlotDto.class);
+
+                    parkingTicketDto.getParkingEntranceSlot().setParkingEntrance(parkingEntranceDto);
+                    parkingTicketDto.getParkingEntranceSlot().setParkingSlot(parkingSlotDto);
+                });
+                return parkingTicketDto;
+            }
+        );
+    }
+
+    @Override
+    public Page<ParkingTransactionDetailsDto> retrieveTransactionBySearchKeyPageable(String searchKey, Pageable pageable) {
+        return parkingTransactionDetailsRepository.getParkingTransactionBySearchKeyPageable(searchKey, pageable)
+            .map(parkingTransaction -> objectMapper.convertValue(parkingTransaction, ParkingTransactionDetailsDto.class));
     }
 
     private BigDecimal sumAmount(final List<ParkingTransactionItem> parkingTransactionItemList,
@@ -250,19 +298,30 @@ public class ParkingTicketServiceImpl implements ParkingTicketService {
         return totalAmountDue.subtract(deductions);
     }
 
-    private List<ParkingTransactionItemDto> calculateCurrentCharges(String ticketId) {
-        final List<ParkingTransactionItemDto> parkingTransactionItemDtoList = new ArrayList<>();
-        parkingTicketRepository.findByTicketId(ticketId).ifPresent(parkingTicket -> {
+    private Optional<ParkingTransactionDetailsDto> transactionTicketDetailsAndCharges(String ticketId) {
+
+        return parkingTicketRepository.findByTicketId(ticketId).map(parkingTicket -> {
+            final List<ParkingTransactionItemDto> parkingTransactionItemDtoList = new ArrayList<>();
+            final ParkingTransactionDetailsDto transactionDetailsDto = objectMapper.convertValue(parkingTicket,
+                ParkingTransactionDetailsDto.class);
 
             if (!parkingTicket.getParkingStatus().equals(ParkingStatus.PARKED)) {
                 throw new ParkingException("Only Parked status ticket can be calculated", HttpStatus.BAD_REQUEST);
             }
 
-            final Date parkedDate = parkingTicket.getDateParked();
+            final LocalDateTime parkedDate = parkingTicket.getDateParked();
             final ParkingSlot parkingSlot = parkingTicket.getParkingEntranceSlot().getParkingSlot();
-            final List<ParkingSlotPrice> parkingSlotPrices = parkingSlot.getParkingSlotPrices();
+            final List<ParkingSlotPrice> parkingSlotPrices = parkingSlotPriceRepository
+                .findBySize(parkingSlot.getSize());
 
-            final Integer hoursDiff = DateUtil.getHoursDiff(parkedDate, DateUtil.getCurrentDateTime());
+            final BigDecimal hoursDiffExact = DateUtil.getHoursDiff(parkedDate, DateUtil.getCurrentLocalDateTime());
+            transactionDetailsDto.setHoursDuration(hoursDiffExact);
+            final Integer hoursDiff = UtilityHelper.roundUpWhole(hoursDiffExact);
+            transactionDetailsDto.setHoursBilled(hoursDiff);
+
+            transactionDetailsDto.setEntrance(parkingTicket.getParkingEntranceSlot().getParkingEntrance().getName());
+            transactionDetailsDto.setSlot(parkingSlot.getName());
+            transactionDetailsDto.setSlotSize(parkingSlot.getSize());
 
             final AtomicReference<BigDecimal> charges = new AtomicReference<>(new BigDecimal(0));
 
@@ -306,13 +365,11 @@ public class ParkingTicketServiceImpl implements ParkingTicketService {
                     this.addPerHourChanges(perHourPriceOpt, parkingTransactionItemDtoList, excessHourQuantity);
                 }
             });
-
             this.findPreviousPaidTransaction(parkingTicket, parkingTransactionItemDtoList);
-
+            transactionDetailsDto.setParkingTransactionItems(parkingTransactionItemDtoList);
+            return transactionDetailsDto;
         });
 
-
-        return parkingTransactionItemDtoList;
     }
 
     private void addPerHourChanges(final Optional<ParkingSlotPrice> perHourRatePriceOpt,
@@ -333,9 +390,9 @@ public class ParkingTicketServiceImpl implements ParkingTicketService {
     }
 
 
-    private String generateTicketId(final ReferenceId maxReferenceId) {
+    private String generateTicketId(final String maxReferenceId) {
 
-        final String value = Optional.ofNullable(maxReferenceId).map(ReferenceId::getValue)
+        final String value = Optional.ofNullable(maxReferenceId)
             .orElse("0");
         log.info("Parking ticket max id {} ", value);
         final AtomicReference<String> ticketIdAr = new AtomicReference<>("");
@@ -354,9 +411,9 @@ public class ParkingTicketServiceImpl implements ParkingTicketService {
         return ticketIdAr.get();
     }
 
-    private String generateTransactionId(final ReferenceId maxTransactionId) {
+    private String generateTransactionId(final String maxTransactionId) {
 
-        final String value = Optional.ofNullable(maxTransactionId).map(ReferenceId::getValue)
+        final String value = Optional.ofNullable(maxTransactionId)
             .orElse("0");
         log.info("Transaction max id {} ", value);
         final AtomicReference<String> transactionIdAr = new AtomicReference<>("");
@@ -370,7 +427,6 @@ public class ParkingTicketServiceImpl implements ParkingTicketService {
             transactionIdAr.set(transactionId);
         });
         log.info("Generated transaction id {} ", transactionIdAr.get());
-
 
         return transactionIdAr.get();
     }

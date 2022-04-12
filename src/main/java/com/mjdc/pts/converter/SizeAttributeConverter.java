@@ -1,6 +1,5 @@
 package com.mjdc.pts.converter;
 
-import com.mjdc.pts.enumeration.PriceType;
 import com.mjdc.pts.enumeration.Size;
 
 import javax.persistence.AttributeConverter;

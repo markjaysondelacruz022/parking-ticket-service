@@ -1,8 +1,6 @@
 package com.mjdc.pts.exception;
 
 import com.mjdc.pts.dto.ResponseDto;
-import com.mjdc.pts.util.DateUtil;
-import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -27,7 +25,6 @@ public class AppExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ResponseDto> handleControllerException(final ControllerException ex,
                                                                  final WebRequest request) {
         return new ResponseEntity<>(ResponseDto.builder()
-            .timestamp(DateUtil.getCurrentDateTime())
             .message(ex.getMessage())
             .build(), ex.getHttpStatus());
     }
@@ -36,7 +33,6 @@ public class AppExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ResponseDto> handleParkingException(final ParkingException ex,
                                                                  final WebRequest request) {
         return new ResponseEntity<>(ResponseDto.builder()
-            .timestamp(DateUtil.getCurrentDateTime())
             .message(ex.getMessage())
             .build(), ex.getHttpStatus());
     }
@@ -49,7 +45,6 @@ public class AppExceptionHandler extends ResponseEntityExceptionHandler {
         Optional.ofNullable(ex.getReason()).ifPresent(messageAr::set);
 
         return new ResponseEntity<>(ResponseDto.builder()
-            .timestamp(DateUtil.getCurrentDateTime())
             .message(messageAr.get())
             .build(), ex.getStatus());
     }
@@ -63,7 +58,6 @@ public class AppExceptionHandler extends ResponseEntityExceptionHandler {
             .flatMap(c -> Optional.ofNullable(c.getMessage())).ifPresent(messageAr::set);
 
         return new ResponseEntity<>(ResponseDto.builder()
-            .timestamp(DateUtil.getCurrentDateTime())
             .message(messageAr.get())
             .build(), HttpStatus.BAD_REQUEST);
     }
@@ -82,7 +76,6 @@ public class AppExceptionHandler extends ResponseEntityExceptionHandler {
             errors.put(fieldName, errorMessage);
         });
         return new ResponseEntity<>(ResponseDto.builder()
-            .timestamp(DateUtil.getCurrentDateTime())
             .message("Found violation")
             .data(errors)
             .build(), headers, status);

@@ -15,6 +15,10 @@ public class AppContext implements ApplicationContextAware {
         return applicationContext.getBean(clazz);
     }
 
+    public static Object getBean(String beanName) {
+        return applicationContext.getBean(beanName);
+    }
+
     public static Environment getEnv() {
         return applicationContext.getEnvironment();
     }

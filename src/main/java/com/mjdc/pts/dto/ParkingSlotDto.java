@@ -8,7 +8,7 @@ import lombok.Data;
 
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
-import java.util.Date;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -26,13 +26,11 @@ public class ParkingSlotDto {
 
     private String updatedBy;
 
-    @JsonFormat(pattern = DateUtil.DATE_TIME_FORMAT)
-    private Date dateCreated;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = DateUtil.DATE_TIME_FORMAT)
+    private LocalDateTime dateCreated;
 
-    @JsonFormat(pattern = DateUtil.DATE_TIME_FORMAT)
-    private Date dateUpdated;
-
-    private List<ParkingSlotPriceDto> parkingSlotPrices;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = DateUtil.DATE_TIME_FORMAT)
+    private LocalDateTime dateUpdated;
 
     private Boolean isActive = true;
 

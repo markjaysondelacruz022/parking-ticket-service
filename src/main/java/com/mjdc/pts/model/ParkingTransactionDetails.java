@@ -10,11 +10,12 @@ import org.hibernate.annotations.OnDeleteAction;
 
 import javax.persistence.*;
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
-@Entity(name = "PARKING_TRANSACTION_DETAILS")
+@Entity
+@Table(name = "PARKING_TRANSACTION_DETAILS")
 public class ParkingTransactionDetails {
 
     @Id
@@ -25,7 +26,7 @@ public class ParkingTransactionDetails {
     @Column(name = "TRANSACTION_ID", unique = true)
     private String transactionId;
 
-    @Column(name = "TICKET_ID")
+    @Column(name = "TICKET_ID", unique = true)
     private String ticketId;
 
     @Column(name = "DRIVER_NAME")
@@ -64,18 +65,24 @@ public class ParkingTransactionDetails {
     private BigDecimal amountChange;
 
     @Column(name = "DATE_PARKED")
-    private Date dateParked;
+    private LocalDateTime dateParked;
 
     @Column(name = "DATE_CHECKOUT")
-    private Date dateCheckout;
+    private LocalDateTime dateCheckout;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "PAYMENT_STATUS", nullable = false)
     private PaymentStatus paymentStatus;
 
+    @Column(name = "HOURS_DURATION", nullable = false)
+    private BigDecimal hoursDuration;
+
+    @Column(name = "HOURS_BILLED", nullable = false)
+    private Integer hoursBilled;
+
     @CreationTimestamp
     @Column(name = "DATE_CREATED")
-    private Date dateCreated;
+    private LocalDateTime dateCreated;
 
     @OneToMany(cascade = CascadeType.ALL)
     @JoinColumn(name = "TRANSACTION_DETAILS_ID",  referencedColumnName = "ID",

@@ -1,7 +1,8 @@
 package com.mjdc.pts.repository;
 
-import com.mjdc.pts.dto.ReferenceId;
 import com.mjdc.pts.model.ParkingTransactionDetails;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -13,6 +14,12 @@ public interface ParkingTransactionDetailsRepository extends JpaRepository<Parki
 
     Optional<ParkingTransactionDetails> findByTicketId(String ticketId);
 
-    @Query("select new com.mjdc.pts.dto.ReferenceId(MAX( ptd.transactionId)) from PARKING_TRANSACTION_DETAILS ptd")
-    ReferenceId getMaxTransactionId();
+    @Query("select MAX( ptd.transactionId) from ParkingTransactionDetails ptd")
+    String getMaxTransactionId();
+
+    @Query(value = "select pt from ParkingTransactionDetails pt" +
+        " where pt.driverName like %:searchKey% or pt.vehicleDetails like %:searchKey% or pt.vehiclePlateNumber like %:searchKey%"
+        ,countQuery = "select count(pt.id) from ParkingTransactionDetails pt" +
+        " where pt.driverName like %:searchKey% or pt.vehicleDetails like %:searchKey% or pt.vehiclePlateNumber like %:searchKey%")
+    Page<ParkingTransactionDetails> getParkingTransactionBySearchKeyPageable(final String searchKey, final Pageable pageable);
 }

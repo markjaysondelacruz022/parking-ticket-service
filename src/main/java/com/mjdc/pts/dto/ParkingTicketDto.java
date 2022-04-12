@@ -1,16 +1,22 @@
 package com.mjdc.pts.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.mjdc.pts.enumeration.ParkingStatus;
 import com.mjdc.pts.enumeration.Size;
 import com.mjdc.pts.util.DateUtil;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
-import java.util.Date;
+import java.time.LocalDateTime;
 
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@NoArgsConstructor
 public class ParkingTicketDto {
 
     private Long id;
@@ -32,15 +38,17 @@ public class ParkingTicketDto {
 
     private ParkingEntranceSlotDto parkingEntranceSlot;
 
-    @JsonFormat(pattern = DateUtil.DATE_TIME_FORMAT)
-    private Date dateParked;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = DateUtil.DATE_TIME_FORMAT)
+    private LocalDateTime dateParked;
 
-    @JsonFormat(pattern = DateUtil.DATE_TIME_FORMAT)
-    private Date dateCheckout;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = DateUtil.DATE_TIME_FORMAT)
+    private LocalDateTime dateCheckout;
 
-    @JsonFormat(pattern = DateUtil.DATE_TIME_FORMAT)
-    private Date dateCreated;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = DateUtil.DATE_TIME_FORMAT)
+    private LocalDateTime dateCreated;
 
-    @JsonFormat(pattern = DateUtil.DATE_TIME_FORMAT)
-    private Date dateUpdated;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = DateUtil.DATE_TIME_FORMAT)
+    private LocalDateTime dateUpdated;
+
+
 }

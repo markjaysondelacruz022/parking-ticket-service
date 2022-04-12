@@ -1,13 +1,15 @@
 package com.mjdc.pts.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.mjdc.pts.enumeration.PaymentStatus;
 import com.mjdc.pts.enumeration.Size;
+import com.mjdc.pts.util.DateUtil;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -29,8 +31,16 @@ public class ParkingTransactionDetailsDto {
     private BigDecimal amountTender;
     private BigDecimal amountChange;
     private PaymentStatus paymentStatus;
-    private Date dateParked;
-    private Date dateCheckout;
-    private Date dateCreated;
+    private BigDecimal hoursDuration;
+    private Integer hoursBilled;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = DateUtil.DATE_TIME_FORMAT)
+    private LocalDateTime dateParked;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = DateUtil.DATE_TIME_FORMAT)
+    private LocalDateTime dateCheckout;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = DateUtil.DATE_TIME_FORMAT)
+    private LocalDateTime dateCreated;
     private List<ParkingTransactionItemDto> parkingTransactionItems;
 }

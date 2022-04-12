@@ -1,6 +1,7 @@
 package com.mjdc.pts.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.mjdc.pts.dto.ParkingEntranceSlotDto;
 import lombok.Data;
 import lombok.ToString;
 import org.hibernate.annotations.OnDelete;
@@ -13,7 +14,7 @@ import javax.persistence.*;
 @Table(uniqueConstraints = {
     @UniqueConstraint(columnNames = {"PARKING_SLOT_ID", "PARKING_ENTRANCE_ID"})
 })
-public class ParkingEntranceSlot {
+public class ParkingEntranceSlot implements Comparable<ParkingEntranceSlotDto> {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "ID")
@@ -25,6 +26,7 @@ public class ParkingEntranceSlot {
     @Column(name = "PARKING_SLOT_ID")
     private Long parkingSlotId;
 
+    @JsonIgnore
     @ToString.Exclude
     @ManyToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "PARKING_ENTRANCE_ID", referencedColumnName = "ID",
@@ -33,6 +35,7 @@ public class ParkingEntranceSlot {
     @OnDelete(action = OnDeleteAction.NO_ACTION)
     private ParkingEntrance parkingEntrance;
 
+    @JsonIgnore
     @ToString.Exclude
     @ManyToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "PARKING_SLOT_ID",  referencedColumnName = "ID",
@@ -44,4 +47,8 @@ public class ParkingEntranceSlot {
     @Column(name = "DISTANCE", length = 5)
     private Integer distance;
 
+    @Override
+    public int compareTo(ParkingEntranceSlotDto o) {
+        return this.getDistance().compareTo(o.getDistance());
+    }
 }
