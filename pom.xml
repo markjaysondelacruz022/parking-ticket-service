@@ -12,7 +12,7 @@
 	<artifactId>pts</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>pts</name>
-	<description>Park Ticketing System</description>
+	<description>Park Ticketing Service</description>
 	<properties>
 		<java.version>11</java.version>
 	</properties>
