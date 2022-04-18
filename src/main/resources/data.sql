@@ -5,8 +5,8 @@ set @priceSizeMedium = (select count(psp.id) from park_ticketing.parking_slot_pr
 set @priceSizeLarge = (select count(psp.id) from park_ticketing.parking_slot_price psp where psp.size ='Large');
 
 INSERT INTO park_ticketing.parking_slot_price (`created_by`,`date_created`,`hour`,`price`,`size`,`type`)
-select prices.* from ((select 'MJ' created_by, now() date_created,3 `hour`,40.00 price,'Small' size,'Flat Rate' `type` where 0 = @priceSizeSmall)
-union (select 'SYSTEM',now(),3,40.00,'Small','Flat Rate' where 0 = @priceSizeSmall)
+select prices.* from (
+(select 'SYSTEM',now(),3,40.00,'Small','Flat Rate' where 0 = @priceSizeSmall)
 union (select 'SYSTEM',now(),1,20.00,'Small','Per Hour' where 0 = @priceSizeSmall)
 union (select 'SYSTEM',now(),24,5000.00,'Small','Day Rate' where 0 = @priceSizeSmall)
 union (select 'SYSTEM',now(),3,40.00,'Medium','Flat Rate' where 0 = @priceSizeMedium)
