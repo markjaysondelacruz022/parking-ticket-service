@@ -5,10 +5,15 @@ spring:
     show-sql: true
     hibernate:
       ddl-auto: update
+    defer-datasource-initialization: true
   datasource:
     username: ${DB_USER}
     password: ${DB_PASSWORD}
     url: 'jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}${DB_PARAM}'
+  sql:
+    init:
+      mode: always
+
 server:
   servlet:
     context-path: ${SERVER_CONTEXT_PATH}
